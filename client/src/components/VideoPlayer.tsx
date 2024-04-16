@@ -1,8 +1,37 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export default function VideoPlayer() {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  function verifyUrl(url: string) {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const inputValue = event.target.value;
+    const isValidUrl = verifyUrl(inputValue);
+
+    if (isValidUrl) {
+      setVideoUrl(inputValue);
+    }
+
+    const file = event.target.files?.[0];
+    if (file) {
+      const fileUrl = URL.createObjectURL(file);
+      setVideoUrl(fileUrl);
+    }
+
+    if (videoRef.current) {
+      videoRef.current.load();
+    }
+  }
 
   function handlePlay() {
     if (videoRef.current) {
@@ -13,18 +42,25 @@ export default function VideoPlayer() {
   }
 
   return (
-    <video
-      ref={videoRef}
-      width="640"
-      height="360"
-      controls
-      onCanPlay={handlePlay}
-    >
-      <source
-        src="https://www.w3schools.com/html/mov_bbb.mp4"
-        type="video/mp4"
+    <>
+      <input
+        type="text"
+        placeholder="Enter the video URL or choose a local video"
+        onChange={handleFileChange}
       />
-      <p>Sorry, your browser does not support embedded videos.</p>
-    </video>
+      <input type="file" accept="video/*" onChange={handleFileChange} />
+      {videoUrl && (
+        <video
+          ref={videoRef}
+          width="640"
+          height="360"
+          controls
+          onCanPlay={handlePlay}
+        >
+          <source src={videoUrl} type="video/mp4" />
+          <p>Sorry, your browser does not support embedded videos.</p>
+        </video>
+      )}
+    </>
   );
 }
