@@ -6,8 +6,10 @@ from typing import List
 from dataclasses import dataclass
 from flask import Flask, request, jsonify
 from smart_open import open
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 @dataclass
 class BBOX:
