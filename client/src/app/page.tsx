@@ -1,3 +1,4 @@
+import HealthCheck from "@/components/HealthCheck";
 import VideoPlayer from "@/components/VideoPlayer";
 
 export default function Home() {
@@ -8,6 +9,7 @@ export default function Home() {
       </header>
       <section>
         <VideoPlayer />
+        <HealthCheck />
       </section>
       <footer>
         <p>Copyright Cleyton Oliveira © 2024</p>
