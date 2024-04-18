@@ -1,7 +1,9 @@
 "use client";
 import HealthCheck from "@/components/HealthCheck";
+import LoadModel from "@/components/LoadModel";
 import ModelSettings from "@/components/ModelSettings";
 import VideoPlayer from "@/components/VideoPlayer";
+import { ModelProvider } from "@/context/ModelContext";
 import { useState } from "react";
 
 export default function Home() {
@@ -19,8 +21,11 @@ export default function Home() {
         <h1>Object Detection Dashboard</h1>
       </header>
       <section>
-        <VideoPlayer confidence={confidence} iou={iou} />
-        <HealthCheck />
+        <ModelProvider>
+          <VideoPlayer confidence={confidence} iou={iou} />
+          <LoadModel />
+          <HealthCheck />
+        </ModelProvider>
         <ModelSettings onSettingsSubmit={handleSettingsSubmit} />
       </section>
       <footer>
