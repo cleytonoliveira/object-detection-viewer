@@ -1,27 +1,17 @@
 "use client";
-import { useEffect, useState } from "react";
-import api from "@/infra/api";
+import { useEffect } from "react";
+import { useModel } from "@/context/ModelContext";
 
 export default function HealthCheck() {
-  const [healthCheck, setHealthCheck] = useState<string>("");
-
-  async function handleHealthCheck() {
-    try {
-      const response = await api.get("/health_check");
-      setHealthCheck(response.data);
-    } catch (error) {
-      console.error("Error checking health:", error);
-      setHealthCheck("Error checking health.");
-    }
-  }
+  const { healthCheck, handleHealthCheckModel } = useModel();
 
   useEffect(() => {
-    handleHealthCheck();
+    handleHealthCheckModel();
   }, []);
 
   return (
     <div>
-      <h2>Status of health check:</h2>
+      <h2>Model Status</h2>
       <p>{healthCheck}</p>
     </div>
   );
