@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from flask import Flask, request, jsonify
 from smart_open import open
 from flask_cors import CORS
+import base64
+from io import BytesIO
 
 app = Flask(__name__)
 CORS(app)
@@ -122,8 +124,9 @@ def detect():
     image_path = request.json['image_path']
     confidence = request.json['confidence']
     iou = request.json['iou']
-    with open(image_path, 'rb') as f:
-        original_img = Image.open(f).convert('RGB')
+
+    image_bytes = base64_to_image(image_path)
+    original_img = create_image_from_base64(image_bytes)
     predictions = model(original_img, confidence, iou)
     detections = [p.to_dict() for p in predictions]
 
@@ -141,6 +144,21 @@ def load_model():
     global model
     model = Model(model_name)
     return f"Model {model_name} is loaded"
+
+
+def base64_to_image(base64_string):
+    if base64_string.startswith('data:image'):
+        base64_string = base64_string.split('base64,')[1]
+
+    image_bytes = base64.b64decode(base64_string)
+    return image_bytes
+
+def create_image_from_base64(image_bytes):
+    image_stream = BytesIO(image_bytes)
+
+    image = Image.open(image_stream)
+    return image
+
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0')
