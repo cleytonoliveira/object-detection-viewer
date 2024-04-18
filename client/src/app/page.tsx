@@ -1,7 +1,13 @@
+"use client";
 import HealthCheck from "@/components/HealthCheck";
+import ModelSettings from "@/components/ModelSettings";
 import VideoPlayer from "@/components/VideoPlayer";
 
 export default function Home() {
+  function handleSettingsSubmit(confidence: number, iou: number) {
+    console.log(`Confidence: ${confidence}, IoU: ${iou}`);
+  }
+
   return (
     <main>
       <header>
@@ -10,6 +16,7 @@ export default function Home() {
       <section>
         <VideoPlayer />
         <HealthCheck />
+        <ModelSettings onSettingsSubmit={handleSettingsSubmit} />
       </section>
       <footer>
         <p>Copyright Cleyton Oliveira © 2024</p>
