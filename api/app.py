@@ -183,6 +183,29 @@ def detect():
         print(f'Error detecting objects: {error}')
         return jsonify({'error': 'Error detecting objects'}), 500
 
+@app.route('/predictions', methods=['GET'])
+def get_predictions():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT class_name, confidence FROM predictions ORDER BY id DESC LIMIT 10")
+        rows = cur.fetchall()
+        predictions = []
+        for row in rows:
+            predictions.append({
+                'class_name': row[0],
+                'confidence': row[1]
+            })
+        cur.close()
+        conn.close()
+
+        return jsonify(predictions), 200
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f'Error fetching predictions: {error}')
+        return jsonify({'error': 'Error fetching predictions'}), 500
+
+
 
 @app.route('/health_check', methods=['GET'])
 def health_check():
