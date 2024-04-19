@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import api from "@/infra/api";
+import { useModel } from "@/context/ModelContext";
 
 interface VideoPlayerProps {
   confidence: number;
@@ -12,6 +13,7 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>("");
   const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
   const [objects, setObjects] = useState<any[]>([]);
+  const { model, loadModel } = useModel();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,7 +57,8 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
   useEffect(() => {
     let intervalFrame: NodeJS.Timeout;
 
-    function objectDetect() {
+    async function objectDetect() {
+      await loadModel(model);
       intervalFrame = setInterval(async () => {
         if (videoRef.current && canvasRef.current) {
           const canvas = canvasRef.current;
