@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import api from "@/infra/api";
 import { useModel } from "@/context/ModelContext";
@@ -55,55 +55,10 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
     videoRef.current && videoRef.current.pause();
   }
 
-  useEffect(() => {
-    let intervalFrame: NodeJS.Timeout;
-
-    async function objectDetect() {
-      await loadModel(model);
-      intervalFrame = setInterval(async () => {
-        if (videoRef.current && canvasRef.current) {
-          const canvas = canvasRef.current;
-          const video = videoRef.current;
-
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-
-          const context = canvas.getContext("2d");
-          if (context) {
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const frameVideoUrl = canvas
-              .toDataURL("image/jpeg")
-              .replace("data:image/jpeg;base64,", "");
-
-            try {
-              const response = await api.post("/detect", {
-                image_path: frameVideoUrl,
-                confidence: confidence,
-                iou: iou,
-              });
-
-              setObjects(response.data);
-            } catch (error) {
-              console.error("Error detecting objects:", error);
-            }
-          }
-        }
-      }, 500);
-    }
-
-    if (!fabricCanvas && canvasRef.current) {
-      const canvas = new fabric.Canvas(canvasRef.current);
-      setFabricCanvas(canvas);
-    }
-
-    objectDetect();
-
-    function drawObjects() {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+  function drawObjects() {
+    const canvas = canvasRef.current;
+    if (canvas) {
       const context = canvas.getContext("2d");
-
       if (context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -128,25 +83,66 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
         });
       }
     }
+  }
 
-    if (objects.length > 0) {
-      drawObjects();
+  const objectDetect = useCallback(async () => {
+    await loadModel(model);
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const context = canvas.getContext("2d");
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const frameVideoUrl = canvas
+          .toDataURL("image/jpeg")
+          .replace("data:image/jpeg;base64,", "");
+
+        try {
+          const response = await api.post("/detect", {
+            image_path: frameVideoUrl,
+            confidence: confidence,
+            iou: iou,
+          });
+
+          setObjects(response.data);
+        } catch (error) {
+          console.error("Error detecting objects:", error);
+        }
+      }
+    }
+  }, [confidence, iou, loadModel, model]);
+
+  useEffect(() => {
+    if (!fabricCanvas && canvasRef.current) {
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        width: videoRef.current?.videoWidth,
+        height: videoRef.current?.videoHeight,
+      });
+      setFabricCanvas(canvas);
     }
 
-    return () => {
-      clearInterval(intervalFrame);
-    };
-  }, [fabricCanvas, objects]);
+    objectDetect();
+  }, [objectDetect, fabricCanvas]);
+
+  const fps = 30;
+  const frameDuration = 1 / fps;
 
   function previousFrame() {
     if (videoRef.current) {
-      videoRef.current.currentTime -= 1;
+      videoRef.current.currentTime -= frameDuration;
+      objectDetect();
     }
   }
 
   function forwardFrame() {
     if (videoRef.current) {
-      videoRef.current.currentTime += 1;
+      videoRef.current.currentTime += frameDuration;
+      objectDetect();
     }
   }
 
@@ -175,8 +171,8 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
       )}
       <button onClick={handlePlay}>Play</button>
       <button onClick={handlePause}>Pause</button>
-      <button onClick={previousFrame}>Anterior</button>
-      <button onClick={forwardFrame}>Próximo</button>
+      <button onClick={previousFrame}>Previous Frame</button>
+      <button onClick={forwardFrame}>Forward Frame</button>
       <PredictionTable />
     </>
   );
