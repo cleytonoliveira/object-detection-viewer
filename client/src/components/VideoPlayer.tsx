@@ -3,7 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import api from "@/infra/api";
 
-export default function VideoPlayer() {
+interface VideoPlayerProps {
+  confidence: number;
+  iou: number;
+}
+
+export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>("");
   const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
   const [objects, setObjects] = useState<any[]>([]);
@@ -70,8 +75,8 @@ export default function VideoPlayer() {
             try {
               const response = await api.post("/detect", {
                 image_path: frameVideoUrl,
-                confidence: 0.7,
-                iou: 0.5,
+                confidence: confidence,
+                iou: iou,
               });
 
               setObjects(response.data);
