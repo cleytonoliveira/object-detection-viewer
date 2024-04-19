@@ -5,10 +5,14 @@ import onnxruntime as ort
 from typing import List
 from dataclasses import dataclass
 from flask import Flask, request, jsonify
-from smart_open import open
 from flask_cors import CORS
 import base64
 from io import BytesIO
+import psycopg2
+
+
+from infra.database import get_db
+
 
 app = Flask(__name__)
 CORS(app)
@@ -119,18 +123,46 @@ class Model:
 
 model = Model("yolov8s")
 
+
+def insert_prediction_results(predictions):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        for prediction in predictions:
+            class_name = prediction.class_name
+            confidence = float(prediction.confidence)
+            query = "INSERT INTO predictions (class_name, confidence) VALUES (%s, %s)"
+            cur.execute(query, (class_name, confidence))
+        
+        conn.commit()
+        cur.close()
+        conn.close
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f'Error inserting prediction results: {error}')
+        conn.rollback()
+
+
 @app.route('/detect', methods=['POST'])
 def detect():
-    image_path = request.json['image_path']
-    confidence = request.json['confidence']
-    iou = request.json['iou']
+    try:
+        image_path = request.json['image_path']
+        confidence = request.json['confidence']
+        iou = request.json['iou']
 
-    image_bytes = base64_to_image(image_path)
-    original_img = create_image_from_base64(image_bytes)
-    predictions = model(original_img, confidence, iou)
-    detections = [p.to_dict() for p in predictions]
+        image_bytes = base64_to_image(image_path)
+        original_img = create_image_from_base64(image_bytes)
+        predictions = model(original_img, confidence, iou)
+        insert_prediction_results(predictions)
+        detections = [p.to_dict() for p in predictions]
 
-    return jsonify(detections)
+        return jsonify(detections), 201
+    
+    except Exception as error:
+        print(f'Error detecting objects: {error}')
+        return jsonify({'error': 'Error detecting objects'}), 500
+
 
 @app.route('/health_check', methods=['GET'])
 def health_check():
