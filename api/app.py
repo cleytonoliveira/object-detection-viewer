@@ -9,13 +9,33 @@ from flask_cors import CORS
 import base64
 from io import BytesIO
 import psycopg2
+import os
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 
 from infra.database import get_db
 
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 CORS(app)
+
+
+class Prediction(db.Model):
+    __tablename__ = 'predictions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    class_name = db.Column(db.String(128))
+    confidence = db.Column(db.Float)
+
+    def __init__(self, class_name, confidence):
+        self.class_name = class_name
+        self.confidence = confidence
+
 
 @dataclass
 class BBOX:
