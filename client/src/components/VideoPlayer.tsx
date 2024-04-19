@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import api from "@/infra/api";
 import { useModel } from "@/context/ModelContext";
+import PredictionTable from "./PredictionTable";
 
 interface VideoPlayerProps {
   confidence: number;
@@ -176,6 +177,7 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
       <button onClick={handlePause}>Pause</button>
       <button onClick={previousFrame}>Anterior</button>
       <button onClick={forwardFrame}>Próximo</button>
+      <PredictionTable />
     </>
   );
 }
