@@ -5,13 +5,37 @@ import onnxruntime as ort
 from typing import List
 from dataclasses import dataclass
 from flask import Flask, request, jsonify
-from smart_open import open
 from flask_cors import CORS
 import base64
 from io import BytesIO
+import psycopg2
+import os
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+
+from infra.database import get_db
+
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 CORS(app)
+
+
+class Prediction(db.Model):
+    __tablename__ = 'predictions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    class_name = db.Column(db.String(128))
+    confidence = db.Column(db.Float)
+
+    def __init__(self, class_name, confidence):
+        self.class_name = class_name
+        self.confidence = confidence
+
 
 @dataclass
 class BBOX:
@@ -119,18 +143,69 @@ class Model:
 
 model = Model("yolov8s")
 
+
+def insert_prediction_results(predictions):
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        for prediction in predictions:
+            class_name = prediction.class_name
+            confidence = float(prediction.confidence)
+            query = "INSERT INTO predictions (class_name, confidence) VALUES (%s, %s)"
+            cur.execute(query, (class_name, confidence))
+        
+        conn.commit()
+        cur.close()
+        conn.close
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f'Error inserting prediction results: {error}')
+        conn.rollback()
+
+
 @app.route('/detect', methods=['POST'])
 def detect():
-    image_path = request.json['image_path']
-    confidence = request.json['confidence']
-    iou = request.json['iou']
+    try:
+        image_path = request.json['image_path']
+        confidence = request.json['confidence']
+        iou = request.json['iou']
 
-    image_bytes = base64_to_image(image_path)
-    original_img = create_image_from_base64(image_bytes)
-    predictions = model(original_img, confidence, iou)
-    detections = [p.to_dict() for p in predictions]
+        image_bytes = base64_to_image(image_path)
+        original_img = create_image_from_base64(image_bytes)
+        predictions = model(original_img, confidence, iou)
+        insert_prediction_results(predictions)
+        detections = [p.to_dict() for p in predictions]
 
-    return jsonify(detections)
+        return jsonify(detections), 201
+    
+    except Exception as error:
+        print(f'Error detecting objects: {error}')
+        return jsonify({'error': 'Error detecting objects'}), 500
+
+@app.route('/predictions', methods=['GET'])
+def get_predictions():
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT class_name, confidence FROM predictions ORDER BY id DESC LIMIT 10")
+        rows = cur.fetchall()
+        predictions = []
+        for row in rows:
+            predictions.append({
+                'class_name': row[0],
+                'confidence': row[1]
+            })
+        cur.close()
+        conn.close()
+
+        return jsonify(predictions), 200
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(f'Error fetching predictions: {error}')
+        return jsonify({'error': 'Error fetching predictions'}), 500
+
+
 
 @app.route('/health_check', methods=['GET'])
 def health_check():
