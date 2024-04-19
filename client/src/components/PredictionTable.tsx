@@ -1,23 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import api from "@/infra/api";
+
+interface Prediction {
+  class_name: string;
+  confidence: number;
+}
 
 export default function PredictionTable() {
-  const [predictions, setPredictions] = useState([]);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
 
   useEffect(() => {
-    setPredictions([
-      { class_name: "person", confidence: 0.9 },
-      { class_name: "car", confidence: 0.8 },
-      { class_name: "dog", confidence: 0.7 },
-      { class_name: "cat", confidence: 0.6 },
-      { class_name: "bicycle", confidence: 0.5 },
-      { class_name: "motorcycle", confidence: 0.4 },
-      { class_name: "bus", confidence: 0.3 },
-      { class_name: "truck", confidence: 0.2 },
-      { class_name: "traffic light", confidence: 0.1 },
-      { class_name: "stop sign", confidence: 0.0 },
-    ]);
+    async function fetchPredictions() {
+      try {
+        const response = await api.get("/predictions");
+        setPredictions(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    fetchPredictions();
   }, []);
 
   return (
