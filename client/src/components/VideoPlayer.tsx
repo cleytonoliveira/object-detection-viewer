@@ -10,10 +10,21 @@ interface VideoPlayerProps {
   iou: number;
 }
 
+interface Object {
+  box: {
+    height: number;
+    left: number;
+    top: number;
+    width: number;
+  };
+  class_name: string;
+  confidence: number;
+}
+
 export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>("");
   const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
-  const [objects, setObjects] = useState<any[]>([]);
+  const [objects, setObjects] = useState<Object[]>([]);
   const { model, loadModel } = useModel();
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -62,7 +73,7 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
       if (context) {
         context.clearRect(0, 0, canvas.width, canvas.height);
 
-        objects.forEach((object: any) => {
+        objects.forEach((object: Object) => {
           const {
             box: { height, left, top, width },
             class_name,
