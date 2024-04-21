@@ -1,8 +1,7 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import api from "@/infra/api";
-import { useModel } from "@/context/ModelContext";
 import PredictionTable from "./PredictionTable";
 
 interface VideoPlayerProps {
@@ -24,11 +23,11 @@ interface Object {
 export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
   const [videoUrl, setVideoUrl] = useState<string | null>("");
   const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
-  const [objects, setObjects] = useState<Object[]>([]);
-  const { model, loadModel } = useModel();
+  const [detectObjects, setDetectObjects] = useState<Object[]>([]);
+  const [isDetect, setIsDetect] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   function verifyUrl(url: string) {
     try {
@@ -58,87 +57,104 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
     }
   }
 
-  function handlePlay() {
-    videoRef.current && videoRef.current.play();
-  }
-
-  function handlePause() {
-    videoRef.current && videoRef.current.pause();
-  }
-
-  function drawObjects() {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const context = canvas.getContext("2d");
-      if (context) {
-        context.clearRect(0, 0, canvas.width, canvas.height);
-
-        objects.forEach((object: Object) => {
-          const {
-            box: { height, left, top, width },
-            class_name,
-            confidence,
-          } = object;
-          context.beginPath();
-          context.font = "16px Arial";
-          context.fillStyle = "red";
-          context.rect(left, top, width, height);
-          context.strokeStyle = "red";
-          context.fillText(
-            `${class_name} - ${(confidence * 100).toFixed(2)}%`,
-            left,
-            top - 5
-          );
-          context.lineWidth = 2;
-          context.stroke();
+  useEffect(() => {
+    fabricCanvas?.clear();
+    async function fetchDetectObjects(imagePath: string) {
+      try {
+        const response = await api.post("/detect", {
+          image_path: imagePath,
+          confidence: confidence,
+          iou: iou,
         });
+
+        setDetectObjects(response.data);
+        setIsDetect(false);
+        console.log(response.data);
+      } catch (error) {
+        console.error("Error detecting objects:", error);
       }
     }
-  }
 
-  const objectDetect = useCallback(async () => {
-    await loadModel(model);
-    if (videoRef.current && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
+    async function handleObjectDetect() {
+      if (videoRef.current) {
+        const video = new fabric.Image(videoRef.current, {
+          width: videoRef.current.width,
+          height: videoRef.current.height,
+          selectable: false,
+        });
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+        fabricCanvas?.add(video);
 
-      const context = canvas.getContext("2d");
-      if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageVideoUrl = fabricCanvas?.toDataURL({
+          format: "jpeg",
+          quality: 1,
+        });
 
-        const frameVideoUrl = canvas
-          .toDataURL("image/jpeg")
-          .replace("data:image/jpeg;base64,", "");
+        fabricCanvas?.renderAll();
 
-        try {
-          const response = await api.post("/detect", {
-            image_path: frameVideoUrl,
-            confidence: confidence,
-            iou: iou,
-          });
-
-          setObjects(response.data);
-        } catch (error) {
-          console.error("Error detecting objects:", error);
+        if (imageVideoUrl && isDetect) {
+          await fetchDetectObjects(imageVideoUrl);
         }
+
+        // (video.getElement() as HTMLVideoElement).play();
       }
+
+      fabric.util.requestAnimFrame(function render() {
+        fabricCanvas?.renderAll();
+        fabric.util.requestAnimFrame(render);
+      });
     }
-  }, [confidence, iou, loadModel, model]);
+
+    handleObjectDetect();
+  }, [fabricCanvas, isDetect, confidence, iou]);
 
   useEffect(() => {
-    if (!fabricCanvas && canvasRef.current) {
+    if (videoUrl && videoRef.current) {
       const canvas = new fabric.Canvas(canvasRef.current, {
-        width: videoRef.current?.videoWidth,
-        height: videoRef.current?.videoHeight,
+        width: videoRef.current.width,
+        height: videoRef.current.height,
       });
+
       setFabricCanvas(canvas);
     }
+  }, [videoUrl]);
 
-    objectDetect();
-  }, [objectDetect, fabricCanvas]);
+  useEffect(() => {
+    function drawObjects() {
+      detectObjects.forEach((object) => {
+        const { box, class_name, confidence } = object;
+        const { left, top, width, height } = box;
+
+        const rect = new fabric.Rect({
+          left,
+          top,
+          width,
+          height,
+          fill: "transparent",
+          stroke: "yellow",
+          strokeWidth: 2,
+          selectable: false,
+        });
+
+        const text = new fabric.Text(
+          `${class_name} - ${(confidence * 100).toFixed(2)}%`,
+          {
+            left: left,
+            top: top - 20,
+            fontSize: 20,
+            fontWeight: "bold",
+            fill: "yellow",
+            selectable: false,
+          }
+        );
+
+        fabricCanvas?.add(rect, text);
+      });
+    }
+
+    fabricCanvas?.renderAll();
+    drawObjects();
+  }, [fabricCanvas, detectObjects]);
 
   const fps = 30;
   const frameDuration = 1 / fps;
@@ -146,14 +162,26 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
   function previousFrame() {
     if (videoRef.current) {
       videoRef.current.currentTime -= frameDuration;
-      objectDetect();
+      setIsDetect(true);
     }
   }
 
   function forwardFrame() {
     if (videoRef.current) {
       videoRef.current.currentTime += frameDuration;
-      objectDetect();
+      setIsDetect(true);
+    }
+  }
+
+  function handlePlay() {
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
+  }
+
+  function handlePause() {
+    if (videoRef.current) {
+      videoRef.current.pause();
     }
   }
 
@@ -167,23 +195,18 @@ export default function VideoPlayer({ confidence, iou }: VideoPlayerProps) {
       <input type="file" accept="video/*" onChange={handleFileChange} />
       {videoUrl && (
         <>
-          <video
-            ref={videoRef}
-            width="640"
-            height="480"
-            controls
-            // onCanPlay={handlePlay}
-          >
+          <video ref={videoRef} width="1280" height="720" controls muted>
             <source src={videoUrl} type="video/mp4" />
             <p>Sorry, your browser does not support embedded videos.</p>
           </video>
           <canvas ref={canvasRef} />
         </>
       )}
+      <button onClick={previousFrame}>Detect Previous Frame</button>
+      <button onClick={() => setIsDetect(true)}>Detect this Frame</button>
+      <button onClick={forwardFrame}>Detect Next Frame</button>
       <button onClick={handlePlay}>Play</button>
       <button onClick={handlePause}>Pause</button>
-      <button onClick={previousFrame}>Previous Frame</button>
-      <button onClick={forwardFrame}>Forward Frame</button>
       <PredictionTable />
     </>
   );
