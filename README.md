@@ -42,7 +42,9 @@ git clone git@github.com:cleytonoliveira/object-detection-viewer.git
 cd object-detection-viewer/api
 ```
 
-3. If you already have Docker installed in you machine. Run the command below:
+3. If you already have Docker installed in you machine and want to used to run the project, please use the `POSTGRES_HOST=db` variable in `.env.development`.
+
+4. Now run the command below:
 
 ```bash
 make run
@@ -50,37 +52,37 @@ make run
 
 > ⚠️ If the last process worked for you, go to step 6.
 
-4. If you want to run locally, you need to install the packages using the command below:
+5. If you want to run locally, you need to install the packages using the command below:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-5. Now you can start the application using the command:
+6. Now you can start the application using the command:
 
 ```bash
 python app.py
 ```
 
-6. Now you need to have the PostgreSQL installed locally or running by Docker. If step 3 worked for you, or if you already have the PostgreSQL installed. Now you need to run the migrations with the command below:
+7. Now you need to have the PostgreSQL installed locally or running by Docker. If step 3 worked for you, or if you already have the PostgreSQL installed. Now you need to run the migrations with the command below:
 
 ```bash
 flask db upgrade -d infra/migrations
 ```
 
-7. Now you are ready to start the front-end. Use the command to go for the right directory:
+8. Now you are ready to start the front-end. Use the command to go for the right directory:
 
 ```bash
 cd ../client
 ```
 
-8. Install the packages using:
+9. Install the packages using:
 
 ```bash
 npm install
 ```
 
-9. Now start the application:
+10. Now start the application:
 
 ```bash
 npm run dev
