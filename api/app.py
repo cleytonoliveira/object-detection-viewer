@@ -203,7 +203,7 @@ def get_predictions():
 
     except (Exception, psycopg2.DatabaseError) as error:
         print(f'Error fetching predictions: {error}')
-        return jsonify({'error': 'Error fetching predictions'}), 500
+        return jsonify({'error': f'Error fetching predictions: {error}'}), 500
 
 
 

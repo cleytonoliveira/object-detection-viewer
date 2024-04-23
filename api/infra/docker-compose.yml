@@ -18,3 +18,8 @@ services:
       - 5432:5432
     env_file:
       - ../.env.development
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
